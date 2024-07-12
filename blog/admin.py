@@ -1,41 +1,38 @@
 from django.contrib import admin
-from .models import Product, Company, Sale
+from .models import Kompaniya, Mahsulot, Savdo
 
-
-class ProductAdmin(admin.ModelAdmin):
-    list_display = ('title', 'company', 'quantity', 'price')
-    fields = ('title', 'company', 'quantity', 'price')
-    readonly_fields = ('company',)
+@admin.register(Kompaniya)
+class KompaniyaAdmin(admin.ModelAdmin):
+    list_display = ('nom', 'telefon', 'manzil', 'mahsulotlar_soni')
+    search_fields = ('nom',)
+    readonly_fields = ('mahsulotlar_soni',)
 
     def has_delete_permission(self, request, obj=None):
-        if obj and obj.quantity > 0:
+        if obj and obj.mahsulotlar.count() > 0:
             return False
-        return super().has_delete_permission(request, obj=obj)
+        return super().has_delete_permission(request, obj)
 
+@admin.register(Mahsulot)
+class MahsulotAdmin(admin.ModelAdmin):
+    list_display = ('nom', 'kompaniya', 'soni', 'narx')
+    search_fields = ('nom',)
+    list_filter = ('kompaniya',)
+    fields = ('nom', 'kompaniya', 'narx', 'soni')
 
-class CompanyAdmin(admin.ModelAdmin):
-    list_display = ('title', 'phone', 'address', 'products_count')
+    def get_readonly_fields(self, request, obj=None):
+        if obj:  # mavjud obyektni tahrirlayotganda
+            return []
+        return []
 
-    def has_delete_permission(self, request, obj=None):
-        if obj and obj.products.filter(quantity__gt=0).exists():
-            return False
-        return super().has_delete_permission(request, obj=obj)
+@admin.register(Savdo)
+class SavdoAdmin(admin.ModelAdmin):
+    list_display = ('mijoz_nomi', 'mahsulot_nomi', 'kompaniya_nomi', 'soni', 'umumiy_narx', 'savdo_sanasi')
+    search_fields = ('mijoz_nomi', 'mahsulot__nom')
+    list_filter = ('savdo_sanasi', 'mahsulot__kompaniya')
+    fields = ('mijoz_nomi', 'mahsulot', 'soni')
 
-
-class SaleAdmin(admin.ModelAdmin):
-    list_display = ('customer_name', 'product', 'quantity', 'sale_date', 'total_price')
-    readonly_fields = ('customer_name', 'product', 'quantity', 'sale_date', 'total_price')
-
-    def has_add_permission(self, request):
-        return True
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-
-admin.site.register(Product, ProductAdmin)
-admin.site.register(Company, CompanyAdmin)
-admin.site.register(Sale, SaleAdmin)
+    def save_model(self, request, obj, form, change):
+        if obj.mahsulot.soni >= obj.soni:
+            super().save_model(request, obj, form, change)
+        else:
+            raise ValueError("Omborda yetarli mahsulot yo'q")
